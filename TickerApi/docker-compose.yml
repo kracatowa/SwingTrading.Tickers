@@ -1,0 +1,22 @@
+services:  
+ tickers-api:  
+   image: tickers-api:prod  
+   environment:  
+     - ASPNETCORE_HTTP_PORTS=5245  
+     - ASPNETCORE_ENVIRONMENT=Production  
+   ports:  
+       - "5245:5245"  
+   build:  
+     context: .  
+     dockerfile: Tickers.Api/Dockerfile   
+   volumes:
+      - shared-storage:/app/shared
+   networks:
+      - shared-network
+
+volumes:
+  shared-storage:
+
+networks:
+  shared-network:
+    external: true

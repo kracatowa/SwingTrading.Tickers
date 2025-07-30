@@ -1,5 +1,4 @@
 ﻿using MediatR;
-using Tickers.Domain.Intervals;
 using Tickers.Infrastructure.Repositories;
 
 namespace Tickers.Api.Commands

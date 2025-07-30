@@ -7,7 +7,7 @@ namespace Tickers.Api.Services
     {
         private static readonly JsonSerializerOptions _jsonSerializerOptions = new(JsonSerializerDefaults.Web);
 
-        public List<TickerInformations> LoadTickerInformations(string filePath)
+        public TickerUpdate LoadTickerInformations(string filePath)
         {
             if (!File.Exists(filePath))
                 throw new FileNotFoundException($"File not found at path: {filePath}", filePath);
@@ -16,7 +16,7 @@ namespace Tickers.Api.Services
             {
                 var jsonContent = File.ReadAllText(filePath);
 
-                var tickerInformations = JsonSerializer.Deserialize<List<TickerInformations>>(jsonContent, _jsonSerializerOptions) 
+                var tickerInformations = JsonSerializer.Deserialize<TickerUpdate>(jsonContent, _jsonSerializerOptions)
                                             ?? throw new InvalidOperationException("Failed to deserialize JSON content into TickerInformations.");
 
                 return tickerInformations;

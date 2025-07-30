@@ -51,35 +51,31 @@ namespace Tickers.Api.Controllers
                 return BadRequest("File path cannot be null or empty.");
             }
 
-            var tickerInformations = candleFileService.LoadTickerInformations(addTickersEvent.FilePath);
-            logger.LogInformation("Loaded {Count} ticker informations from file.", tickerInformations.Count);
+            var tickerInformation = candleFileService.LoadTickerInformations(addTickersEvent.FilePath);
 
-            foreach (var tickerInfo in tickerInformations)
-            {
-                var command = new AddCandlesCommand { TickerInformations = tickerInfo };
-                await mediator.Send(command);
-                logger.LogInformation("Sent AddCandlesCommand for ticker: {Ticker}", tickerInfo.Ticker);
-            }
+            var command = new AddCandlesCommand { TickerInformations = tickerInformation };
+            await mediator.Send(command);
+            logger.LogInformation("Sent AddCandlesCommand for ticker: {Ticker}", tickerInformation.Ticker);
 
             logger.LogInformation("AddCandlesAsync completed successfully.");
             return Ok("Candles added successfully.");
         }
 
         [HttpGet("GetTickersNeedingCandleUpdates/{intervalType}")]
-        public async Task<ActionResult<List<TickersUpdate>>> GetTickersNeedingCandleUpdate(IntervalTypes intervalType)
+        public async Task<ActionResult<List<TickerCandleUpdateRequest>>> GetTickersNeedingCandleUpdate(IntervalTypes intervalType)
         {
             logger.LogInformation("GetTickersNeedingCandleUpdate called with intervaltype: {Interval}", intervalType.ToString().ToUpperInvariant());
 
             var tickers = await tickerQueries.GetTickersNeedingCandleUpdates(intervalType);
             logger.LogInformation("Retrieved {Count} tickers needing updates.", tickers.Count);
 
-            var tickersToBeUpdated = new List<TickersUpdate>();
+            var tickersToBeUpdated = new List<TickerCandleUpdateRequest>();
 
             foreach (var ticker in tickers)
             {
                 var missingDays = (DateTime.UtcNow - ticker.Date.UtcDateTime).Days;
 
-                tickersToBeUpdated.Add(new TickersUpdate(ticker.Symbol, missingDays));
+                tickersToBeUpdated.Add(new TickerCandleUpdateRequest(ticker.Symbol, missingDays));
                 logger.LogInformation("Ticker {Symbol} added to update list with missing days: {missingDays}", ticker.Symbol, missingDays);
             }
 

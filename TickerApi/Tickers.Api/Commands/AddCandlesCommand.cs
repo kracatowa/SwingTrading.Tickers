@@ -5,6 +5,6 @@ namespace Tickers.Api.Commands
 {
     public record AddCandlesCommand : IRequest<Unit>
     {
-        public required TickerInformations TickerInformations { get; init; }
+        public required TickerUpdate TickerInformations { get; init; }
     }
 }

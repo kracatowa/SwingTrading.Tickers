@@ -2,7 +2,7 @@ services:
   tickers-api:
     image: tickers-api:dev
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=LocalDocker
       - ASPNETCORE_HTTP_PORTS=5245
     ports:
       - "5245"

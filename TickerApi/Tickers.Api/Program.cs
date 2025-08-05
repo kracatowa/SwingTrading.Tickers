@@ -14,21 +14,27 @@ namespace Tickers.Api
             var builder = WebApplication.CreateBuilder(args);
             var services = builder.Services;
 
-            // Add services to the container    
+            // Add services to the container      
             services.AddControllers();
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen();
 
-            // Register ILogger for dependency injection  
+            // Register ILogger for dependency injection    
             services.AddLogging();
 
-            // Register DbContext for dependency injection    
+            // Register DbContext for dependency injection      
             services.AddDbContext<TickerContext>(options =>
             {
                 var currentLogLevel = builder.Configuration.GetValue<LogLevel>("Logging:LogLevel:Microsoft.EntityFrameworkCore");
 
-                options.UseSqlServer(builder.Configuration.GetConnectionString("Sql"))
-                     .LogTo(Console.WriteLine, currentLogLevel);
+                options.UseSqlServer(builder.Configuration.GetConnectionString("Sql"), sqlOptions =>
+                {
+                    sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(10),
+                        errorNumbersToAdd: null);
+                })
+                .LogTo(Console.WriteLine, currentLogLevel);
 
                 if (currentLogLevel == LogLevel.Debug)
                 {
@@ -38,34 +44,34 @@ namespace Tickers.Api
             });
             TestSqlConnection(services);
 
-            // Apply EF migrations automatically using a hosted service    
+            // Apply EF migrations automatically using a hosted service      
             services.AddHostedService<MigrationHostedService>();
 
-            // Register MediatR for dependency injection    
+            // Register MediatR for dependency injection      
             services.AddMediatR(cfg =>
             {
                 cfg.RegisterServicesFromAssemblyContaining<Program>();
                 cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
             });
 
-            // Register ICandleFileService for dependency injection    
+            // Register ICandleFileService for dependency injection      
             services.AddScoped<ICandleFileService, CandleFileService>();
             services.AddScoped<ITickerRepository, TickerRepository>();
             services.AddScoped<ITickerQueries, TickerQueries>();
 
-            // Add health checks  
+            // Add health checks    
             services.AddHealthChecks();
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline    
+            // Configure the HTTP request pipeline      
             if (app.Environment.EnvironmentName.StartsWith("Local", StringComparison.InvariantCultureIgnoreCase))
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
 
-            // Map health check endpoint  
+            // Map health check endpoint    
             app.MapHealthChecks("/health");
 
             app.MapControllers();
@@ -83,7 +89,7 @@ namespace Tickers.Api
                 logger.LogInformation("App can communicate with SQL server...");
                 logger.LogInformation("Testing the SQL user and password");
 
-                // Test SQL user and password    
+                // Test SQL user and password      
                 var connection = dbContext.Database.GetDbConnection();
                 connection.Open();
                 if (connection.State == System.Data.ConnectionState.Open)
@@ -97,6 +103,6 @@ namespace Tickers.Api
                 logger.LogError(ex, "SQL connection or authentication test failed.");
             }
         }
+
     }
-    
 }

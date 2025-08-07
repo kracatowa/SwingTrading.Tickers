@@ -1,0 +1,55 @@
+# Build results
+bin/
+obj/
+out/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code workspace settings
+.vscode/
+
+# NuGet packages
+*.nupkg
+# The packages folder can be ignored if you use package restore
+**/packages/*
+!**/packages/build/
+!**/packages/repositories.config
+
+# .NET Core project files
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# StyleCop
+StyleCopReport.xml
+
+# Files built by Visual Studio
+*.dbmdl
+*.bak
+*.log
+*.dmp
+
+# Others
+_ReSharper*/
+*.DotSettings.user
+.idea/
+*.vs/
+TestResults/
+*.coverage
+*.coveragexml
+*.testsettings
+*.vspscc
+*.vssscc
+*.cache
+*.pdb
+
+# OS generated files
+.DS_Store
+Thumbs.db

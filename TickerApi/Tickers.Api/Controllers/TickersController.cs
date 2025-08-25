@@ -4,6 +4,7 @@ using Tickers.Api.Commands;
 using Tickers.Api.Controllers.Dto;
 using Tickers.Api.Queries;
 using Tickers.Api.Services;
+using Tickers.Domain;
 using Tickers.Domain.Intervals;
 
 namespace Tickers.Api.Controllers
@@ -81,6 +82,12 @@ namespace Tickers.Api.Controllers
 
             logger.LogInformation("GetTickersNeedingCandleUpdate completed successfully.");
             return tickersToBeUpdated;
+        }
+
+        [HttpGet("GetTickersLimitCandles/{candleLimit}")]
+        public async Task<ActionResult<List<TickerQueries.Ticker>>> GetTickersNeedingCandleUpdate(int candleLimit)
+        { 
+            return await tickerQueries.GetTickersLimitedCandles(candleLimit);
         }
     }
 }

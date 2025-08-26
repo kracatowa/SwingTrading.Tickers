@@ -68,6 +68,17 @@ namespace Tickers.Api
             services.AddScoped<ITickerRepository, TickerRepository>();
             services.AddScoped<ITickerQueries, TickerQueries>();
 
+            services.AddCors(options =>
+            {
+                options.AddPolicy("DockerContainerPolicy", builder =>
+                {
+                    builder
+                        .WithOrigins("http://swing-trading-dashboard:5246")
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
+            });
+
             // Add health checks    
             services.AddHealthChecks();
 
@@ -87,19 +98,8 @@ namespace Tickers.Api
             }
             else
             {
-                services.AddCors(options =>
-                {
-                    options.AddPolicy("DockerContainerPolicy", builder =>
-                    {
-                        builder
-                            .WithOrigins("http://swing-trading-dashboard:5246")
-                            .AllowAnyHeader()
-                            .AllowAnyMethod();
-                    });
-                });
+                app.UseCors("DockerContainerPolicy");
             }
-
-
 
             // Map health check endpoint    
             app.MapHealthChecks("/health");

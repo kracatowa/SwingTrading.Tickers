@@ -10,71 +10,78 @@ namespace Tickers.Api.Queries
         public async Task<List<SymbolPeriodChecker>> GetTickersNeedingCandleUpdates(IntervalTypes intervalType)
         {
             var intervalStrategy = IntervalTypeStrategyFactory.Create(intervalType);
-
             var intervalDate = intervalStrategy.GetIntervalDate();
 
             var tickers = await tickerContext.Tickers
-                            .Include(ticker => ticker.Intervals
-                                .Where(interval => interval.IntervalType == intervalType))
-                            .ThenInclude(interval => interval.Candles
-                                .OrderByDescending(candle => candle.Date)
-                                .Take(1))
-                            .Where(ticker => ticker.Intervals.Any(interval => interval.IntervalType == intervalType &&
-                                                                              !interval.Candles.Any(candle => candle.Date >= intervalDate)))
-                            .Select(ticker => new SymbolPeriodChecker
-                            {
-                                Symbol = ticker.Symbol,
-                                Date = ticker.Intervals
-                                        .Where(t => t.IntervalType == intervalType)
-                                        .SelectMany(c => c.Candles)
-                                        .OrderByDescending(c => c.Date)
-                                        .Select(c => (DateTimeOffset?)c.Date)
-                                        .FirstOrDefault() ?? default
-                            })
-                            .ToListAsync();
+                .Select(ticker => new
+                {
+                    ticker.Symbol,
+                    LastCandleDate = ticker.Intervals
+                        .Where(interval => interval.IntervalType == intervalType)
+                        .SelectMany(interval => interval.Candles)
+                        .Where(candle => candle.Date < intervalDate)
+                        .OrderByDescending(candle => candle.Date)
+                        .Select(candle => (DateTimeOffset?)candle.Date)
+                        .FirstOrDefault()
+                })
+                .Where(t => t.LastCandleDate != null)
+                .Select(t => new SymbolPeriodChecker
+                {
+                    Symbol = t.Symbol,
+                    Date = t.LastCandleDate ?? default
+                })
+                .ToListAsync();
 
             return tickers;
         }
 
         public async Task<List<Ticker>> GetTickersLimitedCandles(int candleLimit, IntervalTypes intervalType)
         {
+            // Query only the required intervals and candles in a single projection
             var tickers = await tickerContext.Tickers
-                .Include(t => t.Intervals.Where(i => i.IntervalType == intervalType))
-                    .ThenInclude(i => i.Candles.OrderByDescending(c => c.Date).Take(candleLimit))
+                .Select(t => new
+                {
+                    t.Symbol,
+                    Interval = t.Intervals
+                        .Where(i => i.IntervalType == intervalType)
+                        .Select(i => new
+                        {
+                            i.IntervalType,
+                            Candles = i.Candles
+                                .OrderByDescending(c => c.Date)
+                                .Take(candleLimit)
+                                .Select(c => new Candle
+                                {
+                                    Date = c.Date,
+                                    Open = c.Open,
+                                    High = c.High,
+                                    Low = c.Low,
+                                    Close = c.Close,
+                                    Volume = c.Volume,
+                                    Dividends = c.Dividends,
+                                    StockSplits = c.StockSplits
+                                })
+                                .ToList()
+                        })
+                        .FirstOrDefault()
+                })
+                .Where(t => t.Interval != null)
                 .ToListAsync();
 
-            var result = new List<Ticker>();
-
-            foreach (var ticker in tickers)
+            // Materialize results into the expected DTO
+            var result = new List<Ticker>(tickers.Count);
+            foreach (var t in tickers)
             {
-                var tickerResult = new Ticker
+                if (t.Interval != null) 
                 {
-                    Symbol = ticker.Symbol,
-                    IntervalType = intervalType
-                };
-
-                var queryCandleResult = ticker.Intervals.First(x => x.IntervalType == intervalType).Candles;
-
-                var candles = queryCandleResult
-                    .OrderByDescending(c => c.Date)
-                    .Take(candleLimit)
-                    .Select(c => new Candle
+                    var tickerResult = new Ticker
                     {
-                        Date = c.Date,
-                        Open = c.Open,
-                        High = c.High,
-                        Low = c.Low,
-                        Close = c.Close,
-                        Volume = c.Volume,
-                        Dividends = c.Dividends,
-                        StockSplits = c.StockSplits
-                    })
-                    .ToList();
-
-                tickerResult.Candles.AddRange(candles);
-
-
-                result.Add(tickerResult);
+                        Symbol = t.Symbol,
+                        IntervalType = t.Interval.IntervalType,
+                        Candles = t.Interval.Candles
+                    };
+                    result.Add(tickerResult);
+                }
             }
 
             return result;

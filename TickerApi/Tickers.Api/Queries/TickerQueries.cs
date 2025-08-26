@@ -80,6 +80,11 @@ namespace Tickers.Api.Queries
             return result;
         }
 
+        public async Task<Domain.Ticker?> GetTicker(string symbol)
+        {
+            return await tickerContext.Tickers.FirstOrDefaultAsync(x => x.Symbol == symbol);
+        }
+
         public class SymbolPeriodChecker
         {
             public string Symbol { get; set; }

@@ -73,7 +73,8 @@ namespace Tickers.Api
                 options.AddPolicy("DockerContainerPolicy", builder =>
                 {
                     builder
-                        .WithOrigins("http://swing-trading-dashboard:5246")
+                        .WithOrigins("http://192.168.0.154:5246")
+                        .WithOrigins("http://192.168.0.153:5246")
                         .AllowAnyHeader()
                         .AllowAnyMethod();
                 });

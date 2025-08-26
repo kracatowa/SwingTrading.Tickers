@@ -84,10 +84,15 @@ namespace Tickers.Api.Controllers
             return tickersToBeUpdated;
         }
 
-        [HttpGet("GetTickersLimitCandles/{candleLimit}")]
-        public async Task<ActionResult<List<TickerQueries.Ticker>>> GetTickersNeedingCandleUpdate(int candleLimit)
-        { 
-            return await tickerQueries.GetTickersLimitedCandles(candleLimit);
+        [HttpGet("GetTickersLimitCandles/{candleLimit}/{intervalTypes}")]
+        public async Task<ActionResult<List<TickerQueries.Ticker>>> GetTickersNeedingCandleUpdate(int candleLimit, IntervalTypes intervalTypes)
+        {
+            logger.LogInformation("GetTickersLimitCandles called with candleLimit: {CandleLimit}, intervalTypes: {IntervalType}", candleLimit, intervalTypes.ToString().ToUpperInvariant());
+
+            var tickers = await tickerQueries.GetTickersLimitedCandles(candleLimit, intervalTypes);
+            logger.LogInformation("Retrieved {Count} tickers with limited candles.", tickers.Count);
+
+            return tickers;
         }
     }
 }

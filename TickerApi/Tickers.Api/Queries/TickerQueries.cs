@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi.Extensions;
 using Tickers.Domain.Intervals;
 using Tickers.Domain.Intervals.Strategies;
 using Tickers.Infrastructure;
@@ -37,58 +36,48 @@ namespace Tickers.Api.Queries
             return tickers;
         }
 
-        public async Task<List<Ticker>> GetTickersLimitedCandles(int candleLimit)
+        public async Task<List<Ticker>> GetTickersLimitedCandles(int candleLimit, IntervalTypes intervalType)
         {
-            var tickers = await tickerContext.Tickers.Include(x => x.Intervals).ToListAsync();
+            var tickers = await tickerContext.Tickers
+                .Include(t => t.Intervals.Where(i => i.IntervalType == intervalType))
+                    .ThenInclude(i => i.Candles.OrderByDescending(c => c.Date).Take(candleLimit))
+                .ToListAsync();
 
-            var intervals = tickers.Select(x => x.Intervals.Select(x => x.Id));
-
-            var intervalIds = new List<Guid>();
-
-            foreach (var interval in intervals)
-            {
-                intervalIds.AddRange(interval);
-            }
-
-            var candles = tickerContext.Candles
-                .OrderByDescending(c => c.Date)
-                .Take(candleLimit)
-                .Where(x => intervalIds.Contains(x.IntervalId))
-                .ToList();
-
-            var tickerResults = new List<Ticker>();
+            var result = new List<Ticker>();
 
             foreach (var ticker in tickers)
             {
-                var tickerResult = new Ticker { Symbol = ticker.Symbol };
-
-                tickerResults.Add(tickerResult);
-
-                foreach (var interval in ticker.Intervals)
+                var tickerResult = new Ticker
                 {
-                    var correspondingCandles = candles.Where(x => x.IntervalId == interval.Id);
+                    Symbol = ticker.Symbol,
+                    IntervalType = intervalType
+                };
 
-                    var candleResults = correspondingCandles.Select(x => new Candle
+                var queryCandleResult = ticker.Intervals.First(x => x.IntervalType == intervalType).Candles;
+
+                var candles = queryCandleResult
+                    .OrderByDescending(c => c.Date)
+                    .Take(candleLimit)
+                    .Select(c => new Candle
                     {
-                        Open = x.Open,
-                        Close = x.Close,
-                        High = x.High,
-                        Low = x.Low,
-                        Date = x.Date,
-                        Volume = x.Volume
-                    }).ToList();
+                        Date = c.Date,
+                        Open = c.Open,
+                        High = c.High,
+                        Low = c.Low,
+                        Close = c.Close,
+                        Volume = c.Volume,
+                        Dividends = c.Dividends,
+                        StockSplits = c.StockSplits
+                    })
+                    .ToList();
 
-                    var intervalResult = new Interval
-                    {
-                        IntervalTypes = interval.IntervalType.GetDisplayName(),
-                        Candles = candleResults
-                    };
+                tickerResult.Candles.AddRange(candles);
 
-                    tickerResult.Intervals.Add(intervalResult);
-                }
+
+                result.Add(tickerResult);
             }
 
-            return tickerResults;
+            return result;
         }
 
         public class SymbolPeriodChecker
@@ -100,12 +89,7 @@ namespace Tickers.Api.Queries
         public class Ticker
         {
             public string Symbol { get; set; }
-            public List<Interval> Intervals { get; set; } = [];
-        }
-
-        public class Interval
-        {
-            public string IntervalTypes { get; set; }
+            public IntervalTypes IntervalType { get; set; }
             public List<Candle> Candles { get; set; } = [];
         }
 

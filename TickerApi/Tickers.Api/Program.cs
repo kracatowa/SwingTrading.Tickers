@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 using Tickers.Api.Commands.Behaviors;
 using Tickers.Api.Queries;
 using Tickers.Api.Services;
@@ -12,6 +13,14 @@ namespace Tickers.Api
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            Log.Logger = new LoggerConfiguration()
+                .ReadFrom.Configuration(builder.Configuration)
+                .CreateLogger();
+
+            // Use Serilog for logging
+            builder.Host.UseSerilog();
+
             var services = builder.Services;
 
             // Add services to the container      
@@ -64,12 +73,33 @@ namespace Tickers.Api
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline      
             if (app.Environment.EnvironmentName.StartsWith("Local", StringComparison.InvariantCultureIgnoreCase))
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
+
+                app.UseCors(policy =>
+                    policy
+                        .AllowAnyOrigin()
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                );
             }
+            else
+            {
+                services.AddCors(options =>
+                {
+                    options.AddPolicy("DockerContainerPolicy", builder =>
+                    {
+                        builder
+                            .WithOrigins("http://swing-trading-dashboard:5246")
+                            .AllowAnyHeader()
+                            .AllowAnyMethod();
+                    });
+                });
+            }
+
+
 
             // Map health check endpoint    
             app.MapHealthChecks("/health");
@@ -103,6 +133,5 @@ namespace Tickers.Api
                 logger.LogError(ex, "SQL connection or authentication test failed.");
             }
         }
-
     }
 }

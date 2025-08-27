@@ -12,24 +12,15 @@ namespace Tickers.Api.Queries
             var intervalStrategy = IntervalTypeStrategyFactory.Create(intervalType);
             var intervalDate = intervalStrategy.GetIntervalDate();
 
+            // Directly filter intervals in the query to reduce unnecessary projections
             var tickers = await tickerContext.Tickers
-                .Select(ticker => new
-                {
-                    ticker.Symbol,
-                    LastCandleDate = ticker.Intervals
-                        .Where(interval => interval.IntervalType == intervalType)
-                        .SelectMany(interval => interval.Candles)
-                        .Where(candle => candle.Date < intervalDate)
-                        .OrderByDescending(candle => candle.Date)
-                        .Select(candle => (DateTimeOffset?)candle.Date)
-                        .FirstOrDefault()
-                })
-                .Where(t => t.LastCandleDate != null)
-                .Select(t => new SymbolPeriodChecker
-                {
-                    Symbol = t.Symbol,
-                    Date = t.LastCandleDate ?? default
-                })
+                .SelectMany(ticker => ticker.Intervals
+                    .Where(interval => interval.IntervalType == intervalType && interval.LastUpdate < intervalDate)
+                    .Select(interval => new SymbolPeriodChecker
+                    {
+                        Symbol = ticker.Symbol,
+                        Date = interval.LastUpdate
+                    }))
                 .ToListAsync();
 
             return tickers;
@@ -37,7 +28,6 @@ namespace Tickers.Api.Queries
 
         public async Task<List<Ticker>> GetTickersLimitedCandles(int candleLimit, IntervalTypes intervalType)
         {
-            // Query only the required intervals and candles in a single projection
             var tickers = await tickerContext.Tickers
                 .Select(t => new
                 {

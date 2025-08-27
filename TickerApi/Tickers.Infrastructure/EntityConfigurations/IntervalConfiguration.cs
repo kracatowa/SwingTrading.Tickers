@@ -22,6 +22,10 @@ namespace Tickers.Infrastructure.EntityConfigurations
                     v => Enum.Parse<IntervalTypes>(v)
                 );
 
+            builder.Property(i=>i.LastUpdate)
+                .IsRequired()
+                .HasDefaultValue(default(DateTimeOffset));
+
             builder.HasIndex(i => i.IntervalType)
                 .IsUnique(false);
 

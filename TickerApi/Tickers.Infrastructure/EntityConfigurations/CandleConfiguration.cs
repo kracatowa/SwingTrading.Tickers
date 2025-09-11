@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Tickers.Domain;
+using Tickers.Domain.Intervals;
 
 namespace Tickers.Infrastructure.EntityConfigurations
 {
@@ -24,6 +25,11 @@ namespace Tickers.Infrastructure.EntityConfigurations
             builder.Property(c => c.Volume).IsRequired();
             builder.Property(c => c.Dividends).IsRequired();
             builder.Property(c => c.StockSplits).IsRequired();
+
+            builder.HasOne<Interval>()
+                .WithMany(i => i.Candles)
+                .HasForeignKey(c => c.IntervalId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

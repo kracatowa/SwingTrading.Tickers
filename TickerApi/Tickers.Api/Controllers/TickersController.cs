@@ -1,5 +1,6 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.RegularExpressions;
 using Tickers.Api.Commands;
 using Tickers.Api.Controllers.Dto;
 using Tickers.Api.Queries;
@@ -15,6 +16,37 @@ namespace Tickers.Api.Controllers
                                    ITickerQueries tickerQueries,
                                    ILogger<TickersController> logger) : ControllerBase
     {
+        [HttpGet("AddTicker")]
+        public async Task<IActionResult> AddTickersAsync(string symbol)
+        {
+            logger.LogInformation("AddTickersAsync called with symbol: {symbol}", symbol);
+
+            if (string.IsNullOrWhiteSpace(symbol))
+            {
+                logger.LogWarning("AddTickersAsync failed due to empty symbol.");
+                return BadRequest("Symbol cannot be null or empty.");
+            }
+
+            if (!Regex.IsMatch(symbol, "^[A-Za-z.]{1,4}$"))
+            {
+                logger.LogWarning("AddTickersAsync failed due to invalid symbol format: {symbol}", symbol);
+                return BadRequest("Symbol must be 1-4 characters, letters or periods only.");
+            }
+
+            var tickers = await tickerQueries.GetTicker(symbol);
+            if (tickers != null)
+            {
+                return Conflict("Symbol already exists");
+            }
+
+            var command = new AddTickerCommand { Symbol = symbol };
+            await mediator.Send(command);
+            logger.LogInformation("Sent AddTickerCommand for ticker: {Ticker}", symbol);
+
+            logger.LogInformation("AddTickersAsync completed successfully.");
+            return Ok("Tickers added successfully.");
+        }
+
         [HttpPost("AddTickers")]
         public async Task<IActionResult> AddTickersAsync([FromBody] ProcessFileEvent addTickersEvent)
         {
@@ -81,6 +113,17 @@ namespace Tickers.Api.Controllers
 
             logger.LogInformation("GetTickersNeedingCandleUpdate completed successfully.");
             return tickersToBeUpdated;
+        }
+
+        [HttpGet("GetTickersLimitCandles/{candleLimit}/{intervalTypes}")]
+        public async Task<ActionResult<List<TickerQueries.Ticker>>> GetTickersNeedingCandleUpdate(int candleLimit, IntervalTypes intervalTypes)
+        {
+            logger.LogInformation("GetTickersLimitCandles called with candleLimit: {CandleLimit}, intervalTypes: {IntervalType}", candleLimit, intervalTypes.ToString().ToUpperInvariant());
+
+            var tickers = await tickerQueries.GetTickersLimitedCandles(candleLimit, intervalTypes);
+            logger.LogInformation("Retrieved {Count} tickers with limited candles.", tickers.Count);
+
+            return tickers;
         }
     }
 }

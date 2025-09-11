@@ -1,4 +1,5 @@
-﻿using Tickers.Domain.Intervals;
+﻿using Tickers.Domain.Exceptions;
+using Tickers.Domain.Intervals;
 
 namespace Tickers.Domain
 {
@@ -10,7 +11,7 @@ namespace Tickers.Domain
         public Ticker(string symbol)
         {
             Symbol = symbol;
-            var baseInterval = new Interval(IntervalTypes.OneDay, []);
+            var baseInterval = new Interval(IntervalTypes.OneDay, [], default);
             Intervals.Add(baseInterval);
         }
 
@@ -18,16 +19,23 @@ namespace Tickers.Domain
         
         public void AddCandles(List<Candle> candles, IntervalTypes interval)
         {
+            if(candles == null || candles.Count == 0)
+                throw new TickerDomainException("Trying to insert empty candles in the database");
+
+            var updateDate = (candles.MaxBy(c => c.Date)?.Date) ?? 
+                                throw new TickerDomainException("Trying to insert empty candles in the database");
+
             var existingInterval = Intervals.FirstOrDefault(i => i.IntervalType == interval);
             if (existingInterval != null)
             {
                 var existingDates = existingInterval.Candles.Select(c => c.Date).ToHashSet();
                 var newCandles = candles.Where(c => !existingDates.Contains(c.Date)).ToList();
                 existingInterval.Candles.AddRange(newCandles);
+                existingInterval.SetLastUpdate(updateDate);
             }
             else
             {
-                Intervals.Add(new Interval(interval, candles));
+                Intervals.Add(new Interval(interval, candles, updateDate));
             }
         }
     }

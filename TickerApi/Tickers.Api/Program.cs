@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 using Tickers.Api.Commands.Behaviors;
 using Tickers.Api.Queries;
 using Tickers.Api.Services;
@@ -12,6 +13,14 @@ namespace Tickers.Api
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            Log.Logger = new LoggerConfiguration()
+                .ReadFrom.Configuration(builder.Configuration)
+                .CreateLogger();
+
+            // Use Serilog for logging
+            builder.Host.UseSerilog();
+
             var services = builder.Services;
 
             // Add services to the container      
@@ -59,16 +68,38 @@ namespace Tickers.Api
             services.AddScoped<ITickerRepository, TickerRepository>();
             services.AddScoped<ITickerQueries, TickerQueries>();
 
+            services.AddCors(options =>
+            {
+                options.AddPolicy("DockerContainerPolicy", builder =>
+                {
+                    builder
+                        .WithOrigins("http://192.168.0.154:5246")
+                        .WithOrigins("http://192.168.0.153:5246")
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
+            });
+
             // Add health checks    
             services.AddHealthChecks();
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline      
             if (app.Environment.EnvironmentName.StartsWith("Local", StringComparison.InvariantCultureIgnoreCase))
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
+
+                app.UseCors(policy =>
+                    policy
+                        .AllowAnyOrigin()
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                );
+            }
+            else
+            {
+                app.UseCors("DockerContainerPolicy");
             }
 
             // Map health check endpoint    
@@ -103,6 +134,5 @@ namespace Tickers.Api
                 logger.LogError(ex, "SQL connection or authentication test failed.");
             }
         }
-
     }
 }

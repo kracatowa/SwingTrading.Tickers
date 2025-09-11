@@ -11,6 +11,7 @@
         public int Volume { get; private set; }
         public float Dividends { get; private set; }
         public float StockSplits { get; private set; }
+        public Guid IntervalId { get; private set; }
 
         public Candle(DateTimeOffset date, float open, float high, float low, float close, int volume, float dividends, float stockSplits)
         {
